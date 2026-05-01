@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: SwiftLint
+        run: brew install swiftlint && swiftlint lint --strict --config .swiftlint.yml
+
+  test-app:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Xcode tests
+        run: |
+          set -eo pipefail
+          SIM_UDID="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); c=[dv["udid"] for r,ds in d.get("devices",{}).items() if "iOS" in r for dv in ds if dv.get("isAvailable") and str(dv.get("deviceTypeIdentifier") or "").startswith("com.apple.CoreSimulator.SimDeviceType.iPhone")]; print(c[0] if c else "")')"
+          if [ -z "$SIM_UDID" ]; then
+            echo "No iPhone simulator found; falling back to named destination." >&2
+            SIM_DEST="platform=iOS Simulator,name=iPhone 17"
+          else
+            SIM_DEST="id=${SIM_UDID}"
+          fi
+          xcodebuild \
+            -project StockTracker.xcodeproj \
+            -scheme StockTracker \
+            -destination "$SIM_DEST" \
+            -quiet \
+            test

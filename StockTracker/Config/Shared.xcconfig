@@ -1,0 +1,5 @@
+// Shared build settings included by Debug.xcconfig and Release.xcconfig
+
+// Substituted into the generated Info.plist (see target build settings).
+FEED_WEBSOCKET_SCHEME = wss
+FEED_WEBSOCKET_HOST_AND_PATH = localhost/v1/stream
