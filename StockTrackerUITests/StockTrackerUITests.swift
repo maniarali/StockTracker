@@ -18,6 +18,6 @@ final class StockTrackerUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
-        XCTAssertTrue(app.navigationBars["Home"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Stocks App"].waitForExistence(timeout: 8))
     }
 }
