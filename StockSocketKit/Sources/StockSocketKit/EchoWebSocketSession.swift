@@ -112,7 +112,6 @@ public actor EchoWebSocketSession {
         outboundSuspended = suspended
     }
 
-
     nonisolated func urlSessionTaskDidComplete(error: Error?) {
         Task {
             await self.onURLSessionTaskCompleted(error: error)
@@ -125,7 +124,7 @@ public actor EchoWebSocketSession {
         if workIntent == .userStopped {
             return
         }
-        
+
         if urlSessionCompletion == .ignoreNextForScheduledReconnect {
             urlSessionCompletion = .surfaceToDriver
             return
@@ -146,15 +145,15 @@ public actor EchoWebSocketSession {
         if error == nil {
             return true
         }
-        
+
         if error is CancellationError {
             return false
         }
-        
+
         if let urlError = error as? URLError, urlError.code == .cancelled {
             return false
         }
-        
+
         return true
     }
 
@@ -176,7 +175,7 @@ public actor EchoWebSocketSession {
         if pendingTerminalTransportFailure == nil {
             pendingTerminalTransportFailure = failure
         }
-        
+
         linkState = .broken
         socketTask?.cancel(with: .goingAway, reason: nil)
     }
@@ -217,7 +216,7 @@ public actor EchoWebSocketSession {
                 group.addTask {
                     await self.receiveLoop()
                 }
-                
+
                 group.addTask {
                     await self.outboundLoop()
                 }
@@ -305,7 +304,7 @@ public actor EchoWebSocketSession {
             urlSessionDelegate = nil
             socketTask = nil
             return .abortedBecauseUserStopped
-            
+
         case .streaming:
             break
         }
@@ -329,17 +328,17 @@ public actor EchoWebSocketSession {
             group.addTask {
                 await handshake.waitHandshakeResult()
             }
-            
+
             group.addTask {
                 try? await Task.sleep(nanoseconds: handshakeCap)
                 return .failure(URLError(.timedOut))
             }
-            
+
             guard let first = await group.next() else {
                 group.cancelAll()
                 return .failure(URLError(.unknown))
             }
-            
+
             group.cancelAll()
             return first
         }
@@ -373,7 +372,7 @@ public actor EchoWebSocketSession {
                         requestTransportHalt(with: .decodingFailed)
                         break
                     }
-                    
+
                     await decodePayload(from: data)
 
                 case let .data(data):

@@ -79,19 +79,19 @@ final class DefaultStockRepository: StockRepositoryProtocol {
         guard userRequestedStreaming else {
             return
         }
-        
+
         guard socketConsumerTask == nil else {
             return
         }
-        
+
         if case .connected = currentFeedConnectionState {
             return
         }
-        
+
         if case .connecting = currentFeedConnectionState {
             return
         }
-        
+
         await mountSocketConsumerIfNeeded()
     }
 

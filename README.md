@@ -111,8 +111,9 @@ SwiftUI observes Observable screen models (StocksScreenModel, StockDetailViewMod
 
 Development notes:
 
-- Swift Package manifests use Swift 6 and declare iOS 18 and macOS 15 as package platforms.
-- The Xcode app target’s deployment version is defined in the project settings; align it with the Xcode and SDK you use locally when they differ from package minimums.
+- Swift 6+
+- iOS 18+
+- Xcode 26+
 
 ---
 

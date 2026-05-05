@@ -10,6 +10,11 @@ import Synchronization
 
 @testable import StockSocketKit
 
+private struct ReconnectSleepCaptureSnapshot {
+    var attempt = 0
+    var nanos = UInt64(0)
+}
+
 final class EchoHandshakeConfigurationTests: XCTestCase {
     func testHandshakeTimeoutIsInjectableForTestTuning() async throws {
         let nano = UInt64(777_777)
@@ -34,12 +39,7 @@ final class EchoHandshakeConfigurationTests: XCTestCase {
 
     func testTransportMetricsReconnectCallbackReceivesBackoffPolicyValues() {
         final class Gate: @unchecked Sendable {
-            private struct Snapshot {
-                var attempt = 0
-                var nanos = UInt64(0)
-            }
-
-            private let mutex = Mutex(Snapshot())
+            private let mutex = Mutex(ReconnectSleepCaptureSnapshot())
 
             func capture(attempt: Int, nanos: UInt64) {
                 mutex.withLock { state in
