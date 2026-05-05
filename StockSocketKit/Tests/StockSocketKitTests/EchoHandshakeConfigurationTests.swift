@@ -10,6 +10,26 @@ import Synchronization
 
 @testable import StockSocketKit
 
+private struct TransportMetricsCaptureState {
+    var attempt = 0
+    var nanos = UInt64(0)
+}
+
+private final class TransportMetricsReconnectGate: @unchecked Sendable {
+    private let mutex = Mutex(TransportMetricsCaptureState())
+
+    func capture(attempt: Int, nanos: UInt64) {
+        mutex.withLock { state in
+            state.attempt = attempt
+            state.nanos = nanos
+        }
+    }
+
+    func values() -> (attempt: Int, nanos: UInt64) {
+        mutex.withLock { (attempt: $0.attempt, nanos: $0.nanos) }
+    }
+}
+
 final class EchoHandshakeConfigurationTests: XCTestCase {
     func testHandshakeTimeoutIsInjectableForTestTuning() async throws {
         let nano = UInt64(777_777)
@@ -33,27 +53,7 @@ final class EchoHandshakeConfigurationTests: XCTestCase {
     }
 
     func testTransportMetricsReconnectCallbackReceivesBackoffPolicyValues() {
-        final class Gate: @unchecked Sendable {
-            private struct Snapshot {
-                var attempt = 0
-                var nanos = UInt64(0)
-            }
-
-            private let mutex = Mutex(Snapshot())
-
-            func capture(attempt: Int, nanos: UInt64) {
-                mutex.withLock { state in
-                    state.attempt = attempt
-                    state.nanos = nanos
-                }
-            }
-
-            func values() -> (attempt: Int, nanos: UInt64) {
-                mutex.withLock { (attempt: $0.attempt, nanos: $0.nanos) }
-            }
-        }
-
-        let gate = Gate()
+        let gate = TransportMetricsReconnectGate()
         let backoff = ExponentialBackoffPolicy(
             initialNanoseconds: 8_888,
             multiplier: 2,

@@ -55,7 +55,11 @@ internal final class WebSocketHandshakeAwaiter: @unchecked Sendable {
     }
 }
 
-internal final class EchoWebSocketURLSessionDelegate: NSObject, URLSessionDelegate, URLSessionWebSocketDelegate, URLSessionTaskDelegate, @unchecked Sendable {
+internal final class EchoWebSocketURLSessionDelegate: NSObject,
+    URLSessionDelegate,
+    URLSessionWebSocketDelegate,
+    URLSessionTaskDelegate,
+    @unchecked Sendable {
     private let handshake: WebSocketHandshakeAwaiter
     private weak var owner: EchoWebSocketSession?
     private let tlsHooks: EchoTLSHooks?

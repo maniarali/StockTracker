@@ -34,17 +34,47 @@ jobs:
 
       - name: Xcode tests
         run: |
-          set -eo pipefail
-          SIM_UDID="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); c=[dv["udid"] for r,ds in d.get("devices",{}).items() if "iOS" in r for dv in ds if dv.get("isAvailable") and str(dv.get("deviceTypeIdentifier") or "").startswith("com.apple.CoreSimulator.SimDeviceType.iPhone")]; print(c[0] if c else "")')"
-          if [ -z "$SIM_UDID" ]; then
-            echo "No iPhone simulator found; falling back to named destination." >&2
-            SIM_DEST="platform=iOS Simulator,name=iPhone 17"
-          else
-            SIM_DEST="id=${SIM_UDID}"
+          set -euo pipefail
+          # Resolve a destination Xcode actually supports (simctl UDIDs can disagree with xcodebuild on CI images).
+          SIM_DEST="$(python3 <<'PY'
+          import re
+          import subprocess
+
+          proc = subprocess.run(
+              [
+                  "xcodebuild",
+                  "-project",
+                  "StockTracker.xcodeproj",
+                  "-scheme",
+                  "StockTracker",
+                  "-showdestinations",
+              ],
+              capture_output=True,
+              text=True,
+          )
+          blob = proc.stdout + proc.stderr
+          dest = ""
+          for line in blob.splitlines():
+              if "platform:iOS Simulator" not in line:
+                  continue
+              if "iPhone" not in line:
+                  continue
+              m = re.search(r"\bid:([0-9A-Fa-f-]+)\b", line)
+              if not m:
+                  continue
+              dest = f"platform=iOS Simulator,id={m.group(1)}"
+              break
+          print(dest, end="")
+          PY
+          )"
+          if [ -z "${SIM_DEST}" ]; then
+            echo "No iPhone iOS Simulator destination from xcodebuild -showdestinations." >&2
+            exit 1
           fi
+          echo "Using -destination ${SIM_DEST}" >&2
           xcodebuild \
             -project StockTracker.xcodeproj \
             -scheme StockTracker \
-            -destination "$SIM_DEST" \
+            -destination "${SIM_DEST}" \
             -quiet \
             test
