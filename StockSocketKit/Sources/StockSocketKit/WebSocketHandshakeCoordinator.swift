@@ -61,13 +61,17 @@ internal final class EchoWebSocketURLSessionDelegate: NSObject,
     URLSessionTaskDelegate,
     @unchecked Sendable {
     private let handshake: WebSocketHandshakeAwaiter
-    private weak var owner: EchoWebSocketSession?
+    private let onTaskCompleted: @Sendable (Error?) -> Void
     private let tlsHooks: EchoTLSHooks?
     private var reportedOpen = false
 
-    init(handshake: WebSocketHandshakeAwaiter, owner: EchoWebSocketSession, tlsHooks: EchoTLSHooks?) {
+    init(
+        handshake: WebSocketHandshakeAwaiter,
+        onTaskCompleted: @escaping @Sendable (Error?) -> Void,
+        tlsHooks: EchoTLSHooks?
+    ) {
         self.handshake = handshake
-        self.owner = owner
+        self.onTaskCompleted = onTaskCompleted
         self.tlsHooks = tlsHooks
     }
 
@@ -92,7 +96,7 @@ internal final class EchoWebSocketURLSessionDelegate: NSObject,
         if reportedOpen == false {
             handshake.completeFailure(error ?? URLError(.cannotConnectToHost))
         } else {
-            owner?.urlSessionTaskDidComplete(error: error)
+            onTaskCompleted(error)
         }
     }
 }

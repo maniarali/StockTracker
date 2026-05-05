@@ -10,7 +10,7 @@ import Synchronization
 
 /// Thread-safe multi-subscriber fan-out. Methods are `nonisolated` so teardown can call `finishAll()` from `deinit`
 /// while the app target uses `default actor isolation = MainActor`.
-final class BroadcastFanOut<Element: Sendable>: Sendable {
+final class BroadcastFanOut<Element: Sendable>: @unchecked Sendable {
     private struct Registration {
         let id: UUID
         let continuation: AsyncStream<Element>.Continuation
@@ -20,7 +20,13 @@ final class BroadcastFanOut<Element: Sendable>: Sendable {
         var registrations: [UUID: Registration] = [:]
     }
 
-    private let mutex = Mutex(LockedState())
+    /// Holds the mutex so `AsyncStream` termination can capture a single reference-type token in a `@Sendable` closure
+    /// (`Mutex` is not `Copyable`, so it cannot be listed in a capture list).
+    private final class LockState: @unchecked Sendable {
+        let mutex = Mutex(LockedState())
+    }
+
+    nonisolated private let lockState = LockState()
 
     nonisolated func makeStream(
         bufferingPolicy: AsyncStream<Element>.Continuation.BufferingPolicy = .bufferingOldest(64)
@@ -28,12 +34,13 @@ final class BroadcastFanOut<Element: Sendable>: Sendable {
         AsyncStream(bufferingPolicy: bufferingPolicy) { continuation in
             let id = UUID()
             let registration = Registration(id: id, continuation: continuation)
-            mutex.withLock { state in
+            lockState.mutex.withLock { state in
                 state.registrations[id] = registration
             }
 
-            continuation.onTermination = { @Sendable [self] _ in
-                self.mutex.withLock { state in
+            let lock = lockState
+            continuation.onTermination = { @Sendable _ in
+                lock.mutex.withLock { state in
                     _ = state.registrations.removeValue(forKey: id)
                 }
             }
@@ -41,7 +48,7 @@ final class BroadcastFanOut<Element: Sendable>: Sendable {
     }
 
     nonisolated func yield(_ element: Element) {
-        let snapshots = mutex.withLock { state -> [Registration] in
+        let snapshots = lockState.mutex.withLock { state -> [Registration] in
             Array(state.registrations.values)
         }
 
@@ -51,7 +58,7 @@ final class BroadcastFanOut<Element: Sendable>: Sendable {
     }
 
     nonisolated func finishAll() {
-        let snapshots = mutex.withLock { state -> [Registration] in
+        let snapshots = lockState.mutex.withLock { state -> [Registration] in
             let copied = Array(state.registrations.values)
             state.registrations.removeAll()
             return copied

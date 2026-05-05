@@ -112,12 +112,6 @@ public actor EchoWebSocketSession {
         outboundSuspended = suspended
     }
 
-    nonisolated func urlSessionTaskDidComplete(error: Error?) {
-        Task {
-            await self.onURLSessionTaskCompleted(error: error)
-        }
-    }
-
     private func onURLSessionTaskCompleted(error: Error?) {
         linkState = .broken
 
@@ -263,7 +257,13 @@ public actor EchoWebSocketSession {
         urlSession?.invalidateAndCancel()
 
         let handshake = WebSocketHandshakeAwaiter()
-        let delegate = EchoWebSocketURLSessionDelegate(handshake: handshake, owner: self, tlsHooks: tlsHooks)
+        let delegate = EchoWebSocketURLSessionDelegate(
+            handshake: handshake,
+            onTaskCompleted: { error in
+                Task { await self.onURLSessionTaskCompleted(error: error) }
+            },
+            tlsHooks: tlsHooks
+        )
 
         let configuration = URLSessionConfiguration.default
         configuration.waitsForConnectivity = false
