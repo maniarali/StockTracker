@@ -16,6 +16,7 @@ enum ApplicationBootstrap {
         case ready(repository: any StockRepositoryProtocol, container: ModelContainer)
     }
 
+    @MainActor
     static func make(logger: Logging = OSLogStockLogger()) -> Phase {
         guard let socketURL = FeedTransportConfiguration.makeDefaultSocketURL() else {
             return .failed(MessagePresentation.feedTransportFailure)

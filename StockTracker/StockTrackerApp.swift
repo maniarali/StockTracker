@@ -5,6 +5,7 @@ import SwiftUI
 struct StockTrackerApp: App {
     private let bootstrap: ApplicationBootstrap.Phase
 
+    @MainActor
     init() {
         bootstrap = ApplicationBootstrap.make()
     }
