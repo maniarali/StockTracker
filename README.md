@@ -60,14 +60,14 @@ SwiftUI observes Observable screen models (StocksScreenModel, StockDetailViewMod
 ### Layer Structure
 
 ```
-┌─────────────────────────────────────────────┐
-│           Presentation Layer                 │
+┌───────────────────────────────────────────────┐
+│           Presentation Layer                  │
 │  SwiftUI Views + @Observable ViewModels       │
 │  StocksListView, StockDetailView, Root…       │
 └────────────────────┬──────────────────────────┘
                      │
 ┌────────────────────▼──────────────────────────┐
-│           Application composition            │
+│           Application composition             │
 │  ApplicationBootstrap, FeedTransportConfig    │
 │  StockFeedLifecycleService (reachability)     │
 └────────────────────┬──────────────────────────┘
@@ -75,18 +75,18 @@ SwiftUI observes Observable screen models (StocksScreenModel, StockDetailViewMod
 ┌────────────────────▼──────────────────────────┐
 │  Domain (Swift Package — StockTrackerDomain)  │
 │  StockQuote, StockCatalogEntry                │
-│  StockRepositoryProtocol, FeedConnectionState   │
+│  StockRepositoryProtocol, FeedConnectionState │
 └────────────────────┬──────────────────────────┘
                      │
         ┌────────────┴────────────┐
         │                         │
-┌───────▼────────┐     ┌──────────▼───────────────┐
-│  Data Layer    │     │ Networking / Transport    │
+┌───────▼────────┐     ┌──────────▼─────────────────┐
+│  Data Layer    │     │ Networking / Transport     │
 │  DefaultStock  │     │ StockSocketKit SPM         │
-│  Repository    │────▶│ EchoWebSocketSession,     │
-│  Swift Data    │     │ Exponential backoff, TLS  │
-│  Catalog JSON  │     │ StockEchoFeed protocol    │
-└────────────────┘     └─────────────────────────┘
+│  Repository    │────▶│ EchoWebSocketSession,      │
+│  Swift Data    │     │ Exponential backoff, TLS   │
+│  Catalog JSON  │     │ StockEchoFeed protocol     │
+└────────────────┘     └────────────────────────────┘
 ```
 
 ### Data Flow (simplified)
