@@ -7,15 +7,20 @@
 
 import Foundation
 
+public typealias EchoTLSAuthenticationChallengeHandler = (
+    URLAuthenticationChallenge,
+    @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+) -> Void
+
 /// Customizes TLS authentication for the WebSocket `URLSession`.
 ///
 /// `Sendable` is unchecked because `URLAuthenticationChallenge` handling runs on `URLSession`'s delegate queue
 /// while session state lives on `EchoWebSocketSession`; callers must treat the handler as queue-confined.
 public struct EchoTLSHooks: @unchecked Sendable {
-    public var onAuthenticationChallenge: ((URLAuthenticationChallenge, @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) -> Void)?
+    public var onAuthenticationChallenge: EchoTLSAuthenticationChallengeHandler?
 
     public init(
-        onAuthenticationChallenge: ((URLAuthenticationChallenge, @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) -> Void)? = nil
+        onAuthenticationChallenge: EchoTLSAuthenticationChallengeHandler? = nil
     ) {
         self.onAuthenticationChallenge = onAuthenticationChallenge
     }

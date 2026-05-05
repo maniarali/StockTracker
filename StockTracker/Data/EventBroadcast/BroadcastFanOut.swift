@@ -14,11 +14,6 @@ final class BroadcastFanOut<Element: Sendable>: Sendable {
     private struct Registration {
         let id: UUID
         let continuation: AsyncStream<Element>.Continuation
-
-        nonisolated init(id: UUID, continuation: AsyncStream<Element>.Continuation) {
-            self.id = id
-            self.continuation = continuation
-        }
     }
 
     private struct LockedState {
@@ -27,7 +22,9 @@ final class BroadcastFanOut<Element: Sendable>: Sendable {
 
     private let mutex = Mutex(LockedState())
 
-    nonisolated func makeStream(bufferingPolicy: AsyncStream<Element>.Continuation.BufferingPolicy = .bufferingOldest(64)) -> AsyncStream<Element> {
+    nonisolated func makeStream(
+        bufferingPolicy: AsyncStream<Element>.Continuation.BufferingPolicy = .bufferingOldest(64)
+    ) -> AsyncStream<Element> {
         AsyncStream(bufferingPolicy: bufferingPolicy) { continuation in
             let id = UUID()
             let registration = Registration(id: id, continuation: continuation)
