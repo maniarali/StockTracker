@@ -35,46 +35,143 @@ jobs:
       - name: Xcode tests
         run: |
           set -euo pipefail
-          # Resolve a destination Xcode actually supports (simctl UDIDs can disagree with xcodebuild on CI images).
           SIM_DEST="$(python3 <<'PY'
+          import json
           import re
           import subprocess
+          import sys
 
-          proc = subprocess.run(
-              [
-                  "xcodebuild",
-                  "-project",
-                  "StockTracker.xcodeproj",
-                  "-scheme",
-                  "StockTracker",
-                  "-showdestinations",
-              ],
-              capture_output=True,
-              text=True,
+          PROJECT = "StockTracker.xcodeproj"
+          SCHEME = "StockTracker"
+          SDK = "iphonesimulator"
+
+          UUID = re.compile(
+              r"\bid:([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})\b"
           )
-          blob = proc.stdout + proc.stderr
-          dest = ""
-          for line in blob.splitlines():
-              if "platform:iOS Simulator" not in line:
-                  continue
-              if "iPhone" not in line:
-                  continue
-              m = re.search(r"\bid:([0-9A-Fa-f-]+)\b", line)
-              if not m:
-                  continue
-              dest = f"platform=iOS Simulator,id={m.group(1)}"
-              break
+          UDID_ONLY = re.compile(
+              r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\Z",
+              re.I,
+          )
+
+
+          def platform_sim(line: str) -> bool:
+              return "platform:iOS Simulator" in line or "platform: iOS Simulator" in line
+
+
+          def from_showdestinations() -> str:
+              proc = subprocess.run(
+                  [
+                      "xcodebuild",
+                      "-project",
+                      PROJECT,
+                      "-scheme",
+                      SCHEME,
+                      "-sdk",
+                      SDK,
+                      "-showdestinations",
+                  ],
+                  capture_output=True,
+                  text=True,
+              )
+              blob = proc.stdout + proc.stderr
+              iphone = ""
+              fallback = ""
+              for line in blob.splitlines():
+                  if not platform_sim(line):
+                      continue
+                  if "placeholder" in line.lower():
+                      continue
+                  m = UUID.search(line)
+                  if not m:
+                      continue
+                  udid = m.group(1)
+                  if "iPhone" in line:
+                      iphone = f"platform=iOS Simulator,id={udid}"
+                      break
+                  if not fallback:
+                      fallback = f"platform=iOS Simulator,id={udid}"
+              return iphone or fallback
+
+
+          def from_simctl() -> str:
+              proc = subprocess.run(
+                  ["xcrun", "simctl", "list", "devices", "available", "-j"],
+                  capture_output=True,
+                  text=True,
+                  check=False,
+              )
+              try:
+                  data = json.loads(proc.stdout)
+              except json.JSONDecodeError:
+                  return ""
+              runtimes = sorted(
+                  (k for k in data.get("devices", {}) if "iOS" in k),
+                  reverse=True,
+              )
+              ipad = ""
+              for rt in runtimes:
+                  for dev in data["devices"][rt]:
+                      if not dev.get("isAvailable"):
+                          continue
+                      udid = dev.get("udid", "")
+                      if not UDID_ONLY.fullmatch(udid):
+                          continue
+                      name = dev.get("name", "")
+                      if "iPhone" in name:
+                          return f"platform=iOS Simulator,id={udid}"
+                      if "iPad" in name and not ipad:
+                          ipad = udid
+              return f"platform=iOS Simulator,id={ipad}" if ipad else ""
+
+
+          def from_named_probe() -> str:
+              for nm in (
+                  "iPhone 17",
+                  "iPhone 16",
+                  "iPhone 15",
+                  "iPhone 16e",
+                  "iPhone SE (3rd generation)",
+              ):
+                  dest = f"platform=iOS Simulator,name={nm}"
+                  r = subprocess.run(
+                      [
+                          "xcodebuild",
+                          "-project",
+                          PROJECT,
+                          "-scheme",
+                          SCHEME,
+                          "-sdk",
+                          SDK,
+                          "-destination",
+                          dest,
+                          "-showBuildSettings",
+                      ],
+                      capture_output=True,
+                      text=True,
+                  )
+                  if r.returncode == 0:
+                      return dest
+              return ""
+
+          dest = from_showdestinations()
+          if not dest:
+              dest = from_simctl()
+          if not dest:
+              dest = from_named_probe()
+          if not dest:
+              print(
+                  "Could not resolve an iOS Simulator destination (showdestinations / simctl / named probe).",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
           print(dest, end="")
           PY
           )"
-          if [ -z "${SIM_DEST}" ]; then
-            echo "No iPhone iOS Simulator destination from xcodebuild -showdestinations." >&2
-            exit 1
-          fi
           echo "Using -destination ${SIM_DEST}" >&2
           xcodebuild \
             -project StockTracker.xcodeproj \
             -scheme StockTracker \
+            -sdk iphonesimulator \
             -destination "${SIM_DEST}" \
             -quiet \
             test
